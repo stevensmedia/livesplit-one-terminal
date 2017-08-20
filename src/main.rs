@@ -1,8 +1,9 @@
-#![feature(io)]
-
+extern crate termion;
 extern crate tui;
 extern crate livesplit_core;
 
+use termion::event::Key;
+use termion::input::TermRead;
 use tui::Terminal;
 use tui::backend::TermionBackend;
 use tui::layout::{Group, Direction, Size};
@@ -13,7 +14,6 @@ use livesplit_core::component::{timer, splits, title, previous_segment, sum_of_b
                                 possible_time_save};
 use livesplit_core::parser::composite;
 use std::{thread, io};
-use std::io::prelude::*;
 use std::io::BufReader;
 use std::time::Duration;
 use std::sync::mpsc::channel;
@@ -75,22 +75,24 @@ fn main() {
     let (tx, rx) = channel();
 
     thread::spawn(move || {
-        let stdin = io::stdin();
-        for c in stdin.lock().chars() {
-            let c = c.unwrap();
-            match c {
-                'q' => break,
-                '1' => timer.write().split(),
-                '2' => timer.write().skip_split(),
-                '3' => timer.write().reset(true),
-                '4' => timer.write().switch_to_previous_comparison(),
-                '5' => timer.write().pause(),
-                '6' => timer.write().switch_to_next_comparison(),
-                '8' => timer.write().undo_split(),
-                _ => {}
+        loop {
+            let stdin = io::stdin();
+            for key in stdin.keys() {
+                let c = key.unwrap();
+                match c {
+                    Key::Char('q') => break,
+                    Key::Char('1') => timer.write().split(),
+                    Key::Char('2') => timer.write().skip_split(),
+                    Key::Char('3') => timer.write().reset(true),
+                    Key::Char('4') => timer.write().switch_to_previous_comparison(),
+                    Key::Char('5') => timer.write().pause(),
+                    Key::Char('6') => timer.write().switch_to_next_comparison(),
+                    Key::Char('8') => timer.write().undo_split(),
+                    _ => {}
+                }
             }
+            tx.send(()).unwrap();
         }
-        tx.send(()).unwrap();
     });
 
     loop {
