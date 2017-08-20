@@ -4,6 +4,6 @@ name = "livesplit-one-terminal"
 version = "0.1.0"
 
 [dependencies]
-livesplit-core = "0.3.0"
-termion = "1"
-tui = "0.1.2"
+livesplit-core = "0.7.0"
+termion = "1.5.1"
+tui = "0.1.3"
