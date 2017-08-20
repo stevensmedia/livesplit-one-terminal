@@ -1,5 +1,5 @@
 [package]
-authors = ["chris"]
+authors = ["chris", "Neil 'presjpolk' Stevens"]
 name = "livesplit-one-terminal"
 version = "0.1.0"
 
