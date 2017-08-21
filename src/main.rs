@@ -35,9 +35,9 @@ struct Components {
 }
 
 fn get_tui_color(color: livesplit_core::settings::Color) -> tui::style::Color {
-	return Color::Rgb((color.rgba.red * 256.0) as u8,
-	                  (color.rgba.green * 256.0) as u8,
-	                  (color.rgba.blue * 256.0) as u8);
+	return Color::Rgb((color.rgba.red * 255.0) as u8,
+	                  (color.rgba.green * 255.0) as u8,
+	                  (color.rgba.blue * 255.0) as u8);
 }
 
 fn main() {
