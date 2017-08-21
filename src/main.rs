@@ -9,10 +9,12 @@ use tui::backend::TermionBackend;
 use tui::layout::{Group, Direction, Size};
 use tui::widgets::{Table, Widget, Paragraph};
 use tui::style::{Color, Style, Modifier};
-use livesplit_core::{Timer, Run, Segment, HotkeySystem, SharedTimer, Color as LSColor};
+use livesplit_core::{Timer, Run, Segment, HotkeySystem, SharedTimer};
+use livesplit_core::run::parser::composite;
+use livesplit_core::settings::{SemanticColor};
+use livesplit_core::layout::{GeneralSettings};
 use livesplit_core::component::{timer, splits, title, previous_segment, sum_of_best,
                                 possible_time_save};
-use livesplit_core::parser::composite;
 use std::{thread, io};
 use std::io::BufReader;
 use std::time::Duration;
@@ -39,7 +41,7 @@ fn main() {
         .and_then(|f| composite::parse(BufReader::new(f), None, true).map_err(|_| ())) {
         run
     } else {
-        let mut run = Run::new(Vec::new());
+        let mut run = Run::new();
         run.set_game_name("Breath of the Wild");
         run.set_category_name("Any%");
 
@@ -53,7 +55,7 @@ fn main() {
         run
     };
 
-    let timer = Timer::new(run).into_shared();
+    let timer = Timer::new(run).unwrap().into_shared();
     let _hotkey_system = HotkeySystem::new(timer.clone()).ok();
 
     let mut layout = Layout {
@@ -69,6 +71,9 @@ fn main() {
     };
 
     let mut terminal = Terminal::new(TermionBackend::new().unwrap()).unwrap();
+
+    let mut layout_settings = GeneralSettings::default();
+
     terminal.clear().unwrap();
     terminal.hide_cursor().unwrap();
 
@@ -100,7 +105,7 @@ fn main() {
             break;
         }
 
-        draw(&mut terminal, &mut layout);
+        draw(&mut terminal, &mut layout, &mut layout_settings);
         thread::sleep(Duration::from_millis(33));
     }
 
@@ -108,25 +113,10 @@ fn main() {
     terminal.show_cursor().unwrap();
 }
 
-fn map_color(color: LSColor) -> Color {
-    use livesplit_core::Color::*;
-    match color {
-        AheadGainingTime => Color::Rgb(0x00, 0xCC, 0x4B),
-        AheadLosingTime => Color::Rgb(0x5C, 0xD6, 0x89),
-        BehindGainingTime => Color::Rgb(0xD6, 0x5C, 0x5C),
-        BehindLosingTime => Color::Rgb(0xCC, 0x00, 0x00),
-        BestSegment => Color::Rgb(0xFF, 0xD5, 0x00),
-        NotRunning => Color::Rgb(0x99, 0x99, 0x99),
-        Paused => Color::Rgb(0x66, 0x66, 0x66),
-        PersonalBest => Color::Rgb(0x4D, 0xA6, 0xFF),
-        Default => Color::White,
-    }
-}
-
-fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout) {
+fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, LayoutSettings: &mut GeneralSettings) {
     let size = t.size().unwrap();
 
-    let splits_state = layout.components.splits.state(&layout.timer.read());
+    let splits_state = layout.components.splits.state(&layout.timer.read(), LayoutSettings);
 
     Group::default()
         .margin(1)
@@ -153,11 +143,7 @@ fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout) {
 
             let styles = splits_state.splits
                 .iter()
-                .map(|s| if s.is_current_split {
-                    Style::default().fg(Color::Rgb(77, 166, 255))
-                } else {
-                    Style::default().fg(map_color(s.color))
-                })
+                .map(|s| Style::default().fg(s.color.visualize()))
                 .collect::<Vec<_>>();
 
             let splits = splits_state.splits
@@ -181,14 +167,14 @@ fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout) {
 
             Paragraph::default()
                 .text(&format!("{:>32}{}", state.time, state.fraction))
-                .style(Style::default().modifier(Modifier::Bold).fg(map_color(state.color)))
+                .style(Style::default().modifier(Modifier::Bold).fg(state.color.visualize()))
                 .render(t, &chunks[2]);
 
             let state = layout.components.previous_segment.state(&layout.timer.read());
 
             Paragraph::default()
                 .text(&format_info_text(&state.text, &state.time))
-                .style(Style::default().fg(map_color(state.color)))
+                .style(Style::default().fg(state.color.visualize()))
                 .render(t, &chunks[3]);
 
             let state = layout.components.sum_of_best.state(&layout.timer.read());
