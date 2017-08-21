@@ -91,7 +91,7 @@ fn main() {
                 let c = key.unwrap();
                 match c {
                     Key::Char('q') => break,
-                    Key::Char('1') => timer.write().split(),
+                    Key::Char('1') => timer.write().split_or_start(),
                     Key::Char('2') => timer.write().skip_split(),
                     Key::Char('3') => timer.write().reset(true),
                     Key::Char('4') => timer.write().switch_to_previous_comparison(),
