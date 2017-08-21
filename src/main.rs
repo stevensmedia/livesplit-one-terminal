@@ -11,7 +11,6 @@ use tui::widgets::{Table, Widget, Paragraph};
 use tui::style::{Color, Style, Modifier};
 use livesplit_core::{Timer, Run, Segment, HotkeySystem, SharedTimer};
 use livesplit_core::run::parser::composite;
-use livesplit_core::settings::{SemanticColor};
 use livesplit_core::layout::{GeneralSettings};
 use livesplit_core::component::{timer, splits, title, previous_segment, sum_of_best,
                                 possible_time_save};
@@ -33,6 +32,12 @@ struct Components {
     previous_segment: previous_segment::Component,
     sum_of_best: sum_of_best::Component,
     possible_time_save: possible_time_save::Component,
+}
+
+fn get_tui_color(color: livesplit_core::settings::Color) -> tui::style::Color {
+	return Color::Rgb((color.rgba.red * 256.0) as u8,
+	                  (color.rgba.green * 256.0) as u8,
+	                  (color.rgba.blue * 256.0) as u8);
 }
 
 fn main() {
@@ -113,10 +118,10 @@ fn main() {
     terminal.show_cursor().unwrap();
 }
 
-fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, LayoutSettings: &mut GeneralSettings) {
+fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, layout_settings: &mut GeneralSettings) {
     let size = t.size().unwrap();
 
-    let splits_state = layout.components.splits.state(&layout.timer.read(), LayoutSettings);
+    let splits_state = layout.components.splits.state(&layout.timer.read(), layout_settings);
 
     Group::default()
         .margin(1)
@@ -130,20 +135,20 @@ fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, LayoutSettings: &
         .render(t, &size, |t, chunks| {
             let state = layout.components.title.state(&layout.timer.read());
 
-            let category = format!("{:^35}", state.category);
-            let attempts = format!("{:>35}", state.attempts);
+            let category = format!("{:^35}", state.line2.unwrap());
+            let attempts = format!("{:>35}", state.attempts.unwrap());
             let category: String = category.chars()
                 .zip(attempts.chars())
                 .map(|(c, a)| if a.is_whitespace() { c } else { a })
                 .collect();
 
             Paragraph::default()
-                .text(&format!("{:^35}\n{}", state.game, category))
+                .text(&format!("{:^35}\n{}", state.line1, category))
                 .render(t, &chunks[0]);
 
             let styles = splits_state.splits
                 .iter()
-                .map(|s| Style::default().fg(s.color.visualize()))
+                .map(|s| Style::default().fg(get_tui_color(s.semantic_color.visualize(layout_settings))))
                 .collect::<Vec<_>>();
 
             let splits = splits_state.splits
@@ -163,18 +168,18 @@ fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, LayoutSettings: &
                 .rows(&splits)
                 .render(t, &chunks[1]);
 
-            let state = layout.components.timer.state(&layout.timer.read());
+            let state = layout.components.timer.state(&layout.timer.read(), layout_settings);
 
             Paragraph::default()
                 .text(&format!("{:>32}{}", state.time, state.fraction))
-                .style(Style::default().modifier(Modifier::Bold).fg(state.color.visualize()))
+                .style(Style::default().modifier(Modifier::Bold).fg(get_tui_color(state.semantic_color.visualize(layout_settings))))
                 .render(t, &chunks[2]);
 
-            let state = layout.components.previous_segment.state(&layout.timer.read());
+            let state = layout.components.previous_segment.state(&layout.timer.read(), layout_settings);
 
             Paragraph::default()
                 .text(&format_info_text(&state.text, &state.time))
-                .style(Style::default().fg(state.color.visualize()))
+                .style(Style::default().fg(get_tui_color(state.semantic_color.visualize(layout_settings))))
                 .render(t, &chunks[3]);
 
             let state = layout.components.sum_of_best.state(&layout.timer.read());
