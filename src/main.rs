@@ -95,7 +95,7 @@ fn main() {
                     Key::Char('2') => timer.write().skip_split(),
                     Key::Char('3') => timer.write().reset(true),
                     Key::Char('4') => timer.write().switch_to_previous_comparison(),
-                    Key::Char('5') => timer.write().pause(),
+                    Key::Char('5') => timer.write().toggle_pause_or_start(),
                     Key::Char('6') => timer.write().switch_to_next_comparison(),
                     Key::Char('8') => timer.write().undo_split(),
                     _ => {}
