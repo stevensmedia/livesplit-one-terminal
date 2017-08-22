@@ -1,6 +1,7 @@
+extern crate getopts;
+extern crate livesplit_core;
 extern crate termion;
 extern crate tui;
-extern crate livesplit_core;
 
 use termion::event::Key;
 use termion::input::TermRead;
@@ -14,7 +15,7 @@ use livesplit_core::run::parser::composite;
 use livesplit_core::layout::{GeneralSettings};
 use livesplit_core::component::{timer, splits, title, previous_segment, sum_of_best,
                                 possible_time_save};
-use std::{thread, io};
+use std::{thread, io, env};
 use std::io::BufReader;
 use std::time::Duration;
 use std::sync::mpsc::channel;
@@ -34,32 +35,69 @@ struct Components {
     possible_time_save: possible_time_save::Component,
 }
 
+/* Convert Livesplit display color to a tui color */
 fn get_tui_color(color: livesplit_core::settings::Color) -> tui::style::Color {
     return Color::Rgb((color.rgba.red * 255.0) as u8,
                       (color.rgba.green * 255.0) as u8,
                       (color.rgba.blue * 255.0) as u8);
 }
 
+fn print_help(me: &String,  opts: &getopts::Options) {
+    print!("{}", (*opts).usage(&format!("Usage: {} [options] [FILE]", me)));
+    std::process::exit(0);
+}
+
+fn error_out(error: &String) {
+    print!("{}\n", error);
+    std::process::exit(1);
+}
+
 fn main() {
-    let run = if let Ok(run) = File::open("splits.lss")
-        .map_err(|_| ())
-        .and_then(|f| composite::parse(BufReader::new(f), None, true).map_err(|_| ())) {
-        run
+    /* Command line arguments */
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut getopts_processor = getopts::Options::new();
+    getopts_processor.optflag("h", "help", "get help");
+
+    let opt_result = getopts_processor.parse(&args[1..]);
+    if opt_result.is_err() {
+        print_help(&program, &getopts_processor);
+    }
+    let opts = opt_result.unwrap();
+
+    if opts.opt_present("h") {
+        print_help(&program, &getopts_processor);
+    }
+
+    let mut run = Run::new();
+    if !opts.free.is_empty() {
+         let ref splits_filename = &opts.free[0].clone();
+
+         /* Open Run if we can, otherwise default */
+         let file_result = File::open(splits_filename);
+         if file_result.is_err() {
+             error_out(&format!("Unable to open {}", splits_filename));
+         }
+         let file = file_result.unwrap();
+
+         let run_result = composite::parse(BufReader::new(file), None, true);
+         if run_result.is_err() {
+             error_out(&format!("Unable to parse {}", splits_filename));
+         }
+         run = run_result.unwrap();
     } else {
-        let mut run = Run::new();
-        run.set_game_name("Breath of the Wild");
+        run.set_game_name("Livesplit Terminal");
         run.set_category_name("Any%");
 
-        run.push_segment(Segment::new("Shrine 1"));
-        run.push_segment(Segment::new("Shrine 2"));
-        run.push_segment(Segment::new("Shrine 3"));
-        run.push_segment(Segment::new("Shrine 4"));
-        run.push_segment(Segment::new("Glider"));
-        run.push_segment(Segment::new("Ganon"));
-
-        run
+        run.push_segment(Segment::new("Split 1"));
+        run.push_segment(Segment::new("Split 2"));
+        run.push_segment(Segment::new("Split 3"));
+        run.push_segment(Segment::new("Split 4"));
+        run.push_segment(Segment::new("Complete!"));
     };
 
+    /* Create timer, layout, etc. */
     let timer = Timer::new(run).unwrap().into_shared();
     let _hotkey_system = HotkeySystem::new(timer.clone()).ok();
 
@@ -75,6 +113,7 @@ fn main() {
         },
     };
 
+    /* Set up dipslay */
     let mut terminal = Terminal::new(TermionBackend::new().unwrap()).unwrap();
 
     let mut layout_settings = GeneralSettings::default();
@@ -82,6 +121,7 @@ fn main() {
     terminal.clear().unwrap();
     terminal.hide_cursor().unwrap();
 
+    /* Spawn IO thread */
     let (tx, rx) = channel();
 
     thread::spawn(move || {
@@ -105,6 +145,7 @@ fn main() {
         }
     });
 
+    /* Read data from IO thread while continuously updating display */
     loop {
         if let Ok(_) = rx.try_recv() {
             break;
@@ -118,6 +159,7 @@ fn main() {
     terminal.show_cursor().unwrap();
 }
 
+/* Update display */
 fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, layout_settings: &mut GeneralSettings) {
     let size = t.size().unwrap();
 
@@ -135,7 +177,7 @@ fn draw(t: &mut Terminal<TermionBackend>, layout: &mut Layout, layout_settings: 
         .render(t, &size, |t, chunks| {
             let state = layout.components.title.state(&layout.timer.read());
 
-            let category = format!("{:^35}", state.line2.unwrap());
+            let category = format!("{:^35}", match state.line2 { None => String::new(), _ => state.line2.unwrap() });
             let attempts = format!("{:>35}", state.attempts.unwrap());
             let category: String = category.chars()
                 .zip(attempts.chars())
