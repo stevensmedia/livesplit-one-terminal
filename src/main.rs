@@ -70,11 +70,11 @@ fn main() {
         print_help(&program, &getopts_processor);
     }
 
+    /* Open Run if we can, otherwise default */
     let mut run = Run::new();
     if !opts.free.is_empty() {
          let ref splits_filename = &opts.free[0].clone();
 
-         /* Open Run if we can, otherwise default */
          let file_result = File::open(splits_filename);
          if file_result.is_err() {
              error_out(&format!("Unable to open {}", splits_filename));
@@ -113,7 +113,7 @@ fn main() {
         },
     };
 
-    /* Set up dipslay */
+    /* Set up display */
     let mut terminal = Terminal::new(TermionBackend::new().unwrap()).unwrap();
 
     let mut layout_settings = GeneralSettings::default();
