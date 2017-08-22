@@ -93,10 +93,9 @@ fn main() {
         run.push_segment(Segment::new("Complete!"));
     };
 
-    /* Create timer, layout, etc. */
+    /* Create Livesplit things */
     let timer = Timer::new(run).unwrap().into_shared();
     let _hotkey_system = HotkeySystem::new(timer.clone()).ok();
-
     let mut layout = Layout {
         timer: timer.clone(),
         components: Components {
@@ -108,12 +107,10 @@ fn main() {
             possible_time_save: possible_time_save::Component::new(),
         },
     };
-
-    /* Set up display */
-    let mut terminal = Terminal::new(TermionBackend::new().unwrap()).unwrap();
-
     let mut layout_settings = GeneralSettings::default();
 
+    /* Create tui things */
+    let mut terminal = Terminal::new(TermionBackend::new().unwrap()).unwrap();
     terminal.clear().unwrap();
     terminal.hide_cursor().unwrap();
 
