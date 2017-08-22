@@ -1,8 +1,21 @@
-extern crate getopts;
+extern crate structopt;
+#[macro_use]
+extern crate structopt_derive;
 extern crate livesplit_core;
 extern crate termion;
 extern crate tui;
 
+use livesplit_core::{Timer, Run, Segment, HotkeySystem, SharedTimer};
+use livesplit_core::run::parser::composite;
+use livesplit_core::layout::{GeneralSettings};
+use livesplit_core::component::{timer, splits, title, previous_segment, sum_of_best,
+                                possible_time_save};
+use std::{thread, io};
+use std::io::BufReader;
+use std::time::Duration;
+use std::sync::mpsc::channel;
+use std::fs::File;
+use structopt::StructOpt;
 use termion::event::Key;
 use termion::input::TermRead;
 use tui::Terminal;
@@ -10,16 +23,6 @@ use tui::backend::TermionBackend;
 use tui::layout::{Group, Direction, Size};
 use tui::widgets::{Table, Widget, Paragraph};
 use tui::style::{Color, Style, Modifier};
-use livesplit_core::{Timer, Run, Segment, HotkeySystem, SharedTimer};
-use livesplit_core::run::parser::composite;
-use livesplit_core::layout::{GeneralSettings};
-use livesplit_core::component::{timer, splits, title, previous_segment, sum_of_best,
-                                possible_time_save};
-use std::{thread, io, env};
-use std::io::BufReader;
-use std::time::Duration;
-use std::sync::mpsc::channel;
-use std::fs::File;
 
 struct Layout {
     timer: SharedTimer,
@@ -42,38 +45,31 @@ fn get_tui_color(color: livesplit_core::settings::Color) -> tui::style::Color {
                       (color.rgba.blue * 255.0) as u8);
 }
 
-fn print_help(me: &String,  opts: &getopts::Options) {
-    print!("{}", (*opts).usage(&format!("Usage: {} [options] [FILE]", me)));
-    std::process::exit(0);
-}
-
+/* Print an error and exit */
 fn error_out(error: &String) {
     print!("{}\n", error);
     std::process::exit(1);
 }
 
+
+/* Command line arguments */
+#[derive(StructOpt, Debug)]
+#[structopt(name = "livesplit-one-terminal",
+            about = "A featureful, customizable timer for speedrunners, in the terminal",
+            version = "0.2.0"
+           )]
+struct Opt {
+    #[structopt(help = "Run file to load")]
+    run_file: Option<String>,
+}
+
 fn main() {
-    /* Command line arguments */
-    let args: Vec<String> = env::args().collect();
-    let program = args[0].clone();
-
-    let mut getopts_processor = getopts::Options::new();
-    getopts_processor.optflag("h", "help", "get help");
-
-    let opt_result = getopts_processor.parse(&args[1..]);
-    if opt_result.is_err() {
-        print_help(&program, &getopts_processor);
-    }
-    let opts = opt_result.unwrap();
-
-    if opts.opt_present("h") {
-        print_help(&program, &getopts_processor);
-    }
+    let opt = Opt::from_args();
 
     /* Open Run if we can, otherwise default */
     let mut run = Run::new();
-    if !opts.free.is_empty() {
-         let ref splits_filename = &opts.free[0].clone();
+    if opt.run_file != None {
+         let ref splits_filename = opt.run_file.unwrap();
 
          let file_result = File::open(splits_filename);
          if file_result.is_err() {

@@ -1,11 +1,12 @@
 [package]
 authors = ["chris", "Neil 'presjpolk' Stevens"]
 name = "livesplit-one-terminal"
-version = "0.1.0"
+version = "0.2.0"
 
 [dependencies]
-getopts = "0.2"
 livesplit-core = "0.7.0"
+structopt = "0.1"
+structopt-derive = "0.1"
 termion = "1.5.1"
 tui = "0.1.3"
 
